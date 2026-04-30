@@ -1,0 +1,12 @@
+.env
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+tests/.data/
+data/uploads/*
+data/faiss/*
+!data/uploads/.gitkeep
+!data/faiss/.gitkeep
+.DS_Store

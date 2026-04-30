@@ -1,0 +1,9 @@
+# Optional local override for faster demos on machines without much memory.
+# Copy to docker-compose.override.yml and edit as needed.
+services:
+  api:
+    environment:
+      TOP_K: 4
+  worker:
+    environment:
+      TOP_K: 4
