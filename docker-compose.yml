@@ -10,8 +10,8 @@ services:
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/1
       CELERY_RESULT_BACKEND: redis://redis:6379/2
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-replace-me}
-      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4.1-mini}
+      OLLAMA_BASE_URL: http://ollama:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2:3b}
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-sentence-transformers/all-MiniLM-L6-v2}
       UPLOAD_DIR: /app/data/uploads
       FAISS_DIR: /app/data/faiss
@@ -32,6 +32,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+      ollama-init:
+        condition: service_completed_successfully
 
   worker:
     build: .
@@ -43,8 +45,8 @@ services:
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/1
       CELERY_RESULT_BACKEND: redis://redis:6379/2
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-replace-me}
-      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4.1-mini}
+      OLLAMA_BASE_URL: http://ollama:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2:3b}
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-sentence-transformers/all-MiniLM-L6-v2}
       UPLOAD_DIR: /app/data/uploads
       FAISS_DIR: /app/data/faiss
@@ -62,6 +64,27 @@ services:
       db:
         condition: service_healthy
       redis:
+        condition: service_started
+      ollama-init:
+        condition: service_completed_successfully
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama:/root/.ollama
+
+  ollama-init:
+    image: ollama/ollama:latest
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2:3b}
+    command: >
+      sh -c "until ollama list >/dev/null 2>&1; do sleep 2; done;
+      ollama pull $${OLLAMA_MODEL}"
+    depends_on:
+      ollama:
         condition: service_started
 
   redis:
@@ -89,3 +112,4 @@ volumes:
   pgdata:
   uploads:
   faiss:
+  ollama:

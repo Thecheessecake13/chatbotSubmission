@@ -1,7 +1,7 @@
 import json
 from collections.abc import Sequence
 
-from openai import OpenAI, OpenAIError
+import httpx
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from app.core.config import get_settings
@@ -11,13 +11,6 @@ from app.services.vector_store import SearchHit
 
 class LLMUnavailableError(Exception):
     pass
-
-
-def _client() -> OpenAI:
-    settings = get_settings()
-    if not settings.openai_api_key or settings.openai_api_key == 'replace-me':
-        raise LLMUnavailableError('OPENAI_API_KEY is not configured.')
-    return OpenAI(api_key=settings.openai_api_key)
 
 
 def build_context(hits: Sequence[SearchHit]) -> str:
@@ -47,15 +40,23 @@ def build_messages(question: str, hits: Sequence[SearchHit], history: Sequence[M
     return messages
 
 
-@retry(wait=wait_exponential(multiplier=1, min=1, max=8), stop=stop_after_attempt(3), retry=retry_if_exception_type(OpenAIError))
+@retry(wait=wait_exponential(multiplier=1, min=1, max=8), stop=stop_after_attempt(3), retry=retry_if_exception_type(httpx.HTTPError))
 def answer_question(question: str, hits: Sequence[SearchHit], history: Sequence[Message]) -> str:
     settings = get_settings()
-    response = _client().chat.completions.create(
-        model=settings.openai_model,
-        messages=build_messages(question, hits, history),
-        temperature=0.1,
-    )
-    return response.choices[0].message.content or ''
+    if not settings.ollama_base_url.strip() or not settings.ollama_model.strip():
+        raise LLMUnavailableError('Ollama is not configured.')
+
+    payload = {
+        'model': settings.ollama_model,
+        'messages': build_messages(question, hits, history),
+        'stream': False,
+        'options': {'temperature': 0.1},
+    }
+    with httpx.Client(base_url=settings.ollama_base_url.rstrip('/'), timeout=120) as client:
+        response = client.post('/api/chat', json=payload)
+        response.raise_for_status()
+    data = response.json()
+    return data.get('message', {}).get('content', '') or ''
 
 
 def citations_json(hits: Sequence[SearchHit]) -> str:

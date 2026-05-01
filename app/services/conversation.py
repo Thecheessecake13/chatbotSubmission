@@ -62,9 +62,9 @@ def ask_document(db: Session, document: Document, question: str, conversation_id
         try:
             answer = answer_question(question, hits, history)
         except LLMUnavailableError:
-            answer = 'The document retrieval succeeded, but the LLM is not configured. Set OPENAI_API_KEY to generate final answers.'
+            answer = 'The document retrieval succeeded, but Ollama is not configured. Set OLLAMA_BASE_URL and OLLAMA_MODEL to generate final answers.'
         except Exception:
-            answer = 'The document retrieval succeeded, but the LLM provider is currently unavailable. Please retry later.'
+            answer = 'The document retrieval succeeded, but Ollama is currently unavailable. Please retry later.'
 
     assistant_msg = Message(
         conversation_id=conversation.id,

@@ -11,10 +11,10 @@ A production-oriented FastAPI service where users upload PDF/DOCX documents and 
 - Overlapping text chunking designed for retrieval quality
 - Sentence Transformers embeddings
 - Per-document FAISS vector indexes
-- OpenAI answer generation with a strict grounded-answer prompt
+- Ollama answer generation with a strict grounded-answer prompt
 - Conversation memory for follow-up questions
 - Processing progress and failure states
-- Docker Compose setup for API, worker, Redis, and Postgres
+- Docker Compose setup for API, worker, Redis, Postgres, and Ollama
 - Three sample documents in `sample_docs/`
 
 ## Local setup
@@ -22,11 +22,10 @@ A production-oriented FastAPI service where users upload PDF/DOCX documents and 
 You need Docker and Docker Compose.
 
 ```bash
-# Optional but required for LLM answers. Retrieval still works without it.
-export OPENAI_API_KEY="sk-..."
-
 docker compose up --build
 ```
+
+The first run downloads the configured Ollama model, which can take several minutes depending on the model size and network speed.
 
 The API will be available at:
 
@@ -34,7 +33,7 @@ The API will be available at:
 - Docs: `http://localhost:8000/docs`
 - Health: `http://localhost:8000/api/v1/health`
 
-`docker compose up` starts Postgres, Redis, the API, runs Alembic migrations, and starts the Celery worker. No database setup is required.
+`docker compose up` starts Postgres, Redis, Ollama, pulls the configured Ollama model, starts the API, runs Alembic migrations, and starts the Celery worker. No database or API-key setup is required for local LLM answers.
 
 ## Environment variables
 
@@ -42,8 +41,8 @@ See `.env.example` for the full list. The most important variables are:
 
 | Variable | Purpose |
 | --- | --- |
-| `OPENAI_API_KEY` | Enables final LLM answers |
-| `OPENAI_MODEL` | Chat model used for answers |
+| `OLLAMA_BASE_URL` | Ollama server URL used for final LLM answers |
+| `OLLAMA_MODEL` | Local Ollama model used for answers |
 | `EMBEDDING_MODEL` | Sentence Transformers model |
 | `DATABASE_URL` | SQLAlchemy database connection |
 | `CELERY_BROKER_URL` | Redis broker for Celery |
@@ -173,8 +172,8 @@ Upload returns `202 Accepted` quickly after saving the file and creating a datab
 - Scanned PDF with no text: document status becomes `failed` with an OCR-related message
 - Redis/Celery enqueue failure after upload: document status becomes `failed` and the API returns `503`
 - No confident retrieval match: the API returns a grounded "not enough information" answer without calling the LLM
-- Missing OpenAI key: retrieval succeeds, but the answer explains that the LLM is not configured
-- Temporary OpenAI failure: retried with exponential backoff before returning a graceful message
+- Missing Ollama configuration: retrieval succeeds, but the answer explains that the LLM is not configured
+- Temporary Ollama failure: retried with exponential backoff before returning a graceful message
 
 ### Code structure
 
@@ -194,15 +193,14 @@ sample_docs/      immediate test files
 
 ### Deployment
 
-This repo is containerized and can be deployed to a VM, Render, Railway, Fly.io, or ECS. A simple deployment path is:
+This repo is containerized and is simplest to deploy on a VM because the API, worker, and Ollama need shared volumes for uploads, FAISS indexes, and local model files. A simple deployment path is:
 
 1. Push the repo to GitHub.
-2. Create managed Postgres and Redis.
-3. Deploy two services from the same image:
-   - API command: `alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT`
-   - Worker command: `celery -A app.worker.celery_app worker --loglevel=INFO`
-4. Set environment variables from `.env.example`.
-5. Attach persistent volumes or object storage for `UPLOAD_DIR` and `FAISS_DIR`.
+2. Create an Ubuntu VM with enough disk for the Ollama model.
+3. Install Docker and Docker Compose.
+4. Copy `.env.example` to `.env` and adjust `OLLAMA_MODEL` if needed.
+5. Run `docker compose up -d --build`.
+6. Expose the API service URL, for example `http://<server-ip>:8000/api/v1`.
 
 Deployment link for submission: not configured in this local workspace. Before final submission, deploy the API and worker with the commands above and replace this line with the hosted base URL, for example `https://your-document-qa-api.example.com/api/v1`.
 

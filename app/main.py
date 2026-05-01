@@ -9,7 +9,7 @@ settings = get_settings()
 app = FastAPI(
     title=settings.app_name,
     version='1.0.0',
-    description='Document upload and conversational Q&A API using FastAPI, Celery, FAISS, sentence-transformers, and OpenAI.',
+    description='Document upload and conversational Q&A API using FastAPI, Celery, FAISS, sentence-transformers, and Ollama.',
 )
 
 app.add_middleware(

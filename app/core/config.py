@@ -1,7 +1,6 @@
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -18,8 +17,8 @@ class Settings(BaseSettings):
     celery_broker_url: str = 'redis://redis:6379/1'
     celery_result_backend: str = 'redis://redis:6379/2'
 
-    openai_api_key: str = Field(default='')
-    openai_model: str = 'gpt-4.1-mini'
+    ollama_base_url: str = 'http://ollama:11434'
+    ollama_model: str = 'llama3.2:3b'
     embedding_model: str = 'sentence-transformers/all-MiniLM-L6-v2'
 
     upload_dir: Path = Path('/app/data/uploads')
