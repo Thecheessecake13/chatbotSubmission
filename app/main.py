@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes import router
 from app.core.config import get_settings
 from app.db.session import Base, engine
-from app.models import domain  # noqa: F401
+from app.models import domain  
 
 settings = get_settings()
 
@@ -21,6 +21,22 @@ app = FastAPI(
 @app.on_event("startup")
 def create_database_tables() -> None:
     Base.metadata.create_all(bind=engine)
+
+
+@app.get("/")
+def root() -> dict[str, object]:
+    return {
+        "status": "success",
+        "message": "Smart Document Q&A API is running successfully.",
+        "docs": "/docs",
+        "health": "/api/v1/health",
+        "endpoints": {
+            "upload_document": "POST /api/v1/documents",
+            "list_documents": "GET /api/v1/documents",
+            "get_document_status": "GET /api/v1/documents/{document_id}",
+            "ask_question": "POST /api/v1/documents/{document_id}/ask",
+        },
+    }
 
 
 app.add_middleware(
