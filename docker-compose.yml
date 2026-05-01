@@ -4,23 +4,23 @@ services:
     command: >
       sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
     environment:
-      APP_NAME: "Smart Document Q&A"
-      APP_ENV: local
-      DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/document_qa
-      REDIS_URL: redis://redis:6379/0
-      CELERY_BROKER_URL: redis://redis:6379/1
-      CELERY_RESULT_BACKEND: redis://redis:6379/2
-      OLLAMA_BASE_URL: http://ollama:11434
+      APP_NAME: ${APP_NAME:-Smart Document Q&A}
+      APP_ENV: ${APP_ENV:-local}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://postgres:postgres@db:5432/document_qa}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/1}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/2}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2:3b}
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-sentence-transformers/all-MiniLM-L6-v2}
-      UPLOAD_DIR: /app/data/uploads
-      FAISS_DIR: /app/data/faiss
-      MAX_UPLOAD_MB: 25
-      CHUNK_SIZE: 900
-      CHUNK_OVERLAP: 160
-      TOP_K: 5
-      MIN_RETRIEVAL_SCORE: 0.25
-      CORS_ORIGINS: "*"
+      UPLOAD_DIR: ${UPLOAD_DIR:-/app/data/uploads}
+      FAISS_DIR: ${FAISS_DIR:-/app/data/faiss}
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-25}
+      CHUNK_SIZE: ${CHUNK_SIZE:-900}
+      CHUNK_OVERLAP: ${CHUNK_OVERLAP:-160}
+      TOP_K: ${TOP_K:-5}
+      MIN_RETRIEVAL_SCORE: ${MIN_RETRIEVAL_SCORE:-0.25}
+      CORS_ORIGINS: ${CORS_ORIGINS:-*}
     ports:
       - "8000:8000"
     volumes:
@@ -32,30 +32,30 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
-      ollama-init:
-        condition: service_completed_successfully
+      ollama:
+        condition: service_started
 
   worker:
     build: .
     command: celery -A app.worker.celery_app worker --loglevel=INFO
     environment:
-      APP_NAME: "Smart Document Q&A"
-      APP_ENV: local
-      DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/document_qa
-      REDIS_URL: redis://redis:6379/0
-      CELERY_BROKER_URL: redis://redis:6379/1
-      CELERY_RESULT_BACKEND: redis://redis:6379/2
-      OLLAMA_BASE_URL: http://ollama:11434
+      APP_NAME: ${APP_NAME:-Smart Document Q&A}
+      APP_ENV: ${APP_ENV:-local}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://postgres:postgres@db:5432/document_qa}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/1}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/2}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2:3b}
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-sentence-transformers/all-MiniLM-L6-v2}
-      UPLOAD_DIR: /app/data/uploads
-      FAISS_DIR: /app/data/faiss
-      MAX_UPLOAD_MB: 25
-      CHUNK_SIZE: 900
-      CHUNK_OVERLAP: 160
-      TOP_K: 5
-      MIN_RETRIEVAL_SCORE: 0.25
-      CORS_ORIGINS: "*"
+      UPLOAD_DIR: ${UPLOAD_DIR:-/app/data/uploads}
+      FAISS_DIR: ${FAISS_DIR:-/app/data/faiss}
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-25}
+      CHUNK_SIZE: ${CHUNK_SIZE:-900}
+      CHUNK_OVERLAP: ${CHUNK_OVERLAP:-160}
+      TOP_K: ${TOP_K:-5}
+      MIN_RETRIEVAL_SCORE: ${MIN_RETRIEVAL_SCORE:-0.25}
+      CORS_ORIGINS: ${CORS_ORIGINS:-*}
     volumes:
       - .:/app
       - uploads:/app/data/uploads
@@ -65,8 +65,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
-      ollama-init:
-        condition: service_completed_successfully
+      ollama:
+        condition: service_started
 
   ollama:
     image: ollama/ollama:latest
@@ -77,15 +77,16 @@ services:
 
   ollama-init:
     image: ollama/ollama:latest
+    entrypoint: [ "/bin/sh", "-c" ]
     environment:
       OLLAMA_HOST: http://ollama:11434
       OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2:3b}
     command: >
-      sh -c "until ollama list >/dev/null 2>&1; do sleep 2; done;
-      ollama pull $${OLLAMA_MODEL}"
+      "until ollama list >/dev/null 2>&1; do sleep 2; done; ollama pull $${OLLAMA_MODEL}"
     depends_on:
       ollama:
         condition: service_started
+    restart: "no"
 
   redis:
     image: redis:7-alpine
@@ -96,14 +97,14 @@ services:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_DB: document_qa
     ports:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d document_qa"]
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d document_qa" ]
       interval: 5s
       timeout: 5s
       retries: 10
