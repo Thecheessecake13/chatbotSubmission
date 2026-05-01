@@ -1,6 +1,6 @@
 {
   "$schema": "https://railway.com/railway.schema.json",
   "deploy": {
-    "startCommand": "sh -c 'uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}'"
+    "startCommand": "sh -c 'celery -A app.worker.celery_app worker --loglevel=INFO --concurrency=1 & uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}'"
   }
 }
